@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Dot : MonoBehaviour
 {
+    #region Variabes
     [Header("Board Variables")]
     public int column;
     public int row;
@@ -33,12 +34,22 @@ public class Dot : MonoBehaviour
     public bool isColorBomb;
     public bool isColumnBomb;
     public bool isRowBomb;
+    public bool isAdjentBomb;
+
+    public GameObject adjacentMarker;
     public GameObject rowArrow;
     public GameObject columnArrow;
     public GameObject colorBomb;
+    #endregion
 
+    #region Unity Callback Functions
     private void Start()
     {
+        isColorBomb = false;
+        isRowBomb = false;
+        isColumnBomb = false;
+        isAdjentBomb = false;
+
         board = FindObjectOfType<Board>();
         findMatches = FindObjectOfType<FindMatches>();
         //targetX = (int)transform.position.x;
@@ -74,6 +85,7 @@ public class Dot : MonoBehaviour
         }
         
     }
+
     private void OnMouseUp()
     {
         if (board.currentState == GameState.move)
@@ -88,26 +100,33 @@ public class Dot : MonoBehaviour
     private void OnMouseOver()
     {
         //burası test için
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            isRowBomb = true;
+            GameObject marker = Instantiate(rowArrow, transform.position, Quaternion.identity);
+            marker.transform.parent = this.transform;
+        }
+        if (Input.GetKeyDown(KeyCode.C))
         {
             isColorBomb = true;
-            GameObject color = Instantiate(colorBomb, transform.position, Quaternion.identity);
-            color.transform.parent = this.transform;
+            GameObject marker = Instantiate(colorBomb, transform.position, Quaternion.identity);
+            marker.transform.parent = this.transform;
         }
-        
 
-        
+
     }
+    #endregion
 
+    #region Move Functions
     void CalculateAngle()
     {
         //ilk basma anında hemen hesaplanmasın diye bir değişkenden daha büyük olmasına bakıyoruz
         if (Mathf.Abs(finalTouchPos.y - firstTouchPos.y) > swipeResist || Mathf.Abs(finalTouchPos.x - firstTouchPos.x) > swipeResist)
         {
             //ilk ve son nokta arası açıyı hesaplama
+            board.currentState = GameState.wait;
             swipeAngle = Mathf.Atan2(finalTouchPos.y - firstTouchPos.y, finalTouchPos.x - firstTouchPos.x) * 180 / Mathf.PI;
             MovePieces();
-            board.currentState = GameState.wait;
             board.currentDot = this;
         }
         else
@@ -117,46 +136,51 @@ public class Dot : MonoBehaviour
         //Debug.Log(swipeAngle); 
     }
 
+    private void Move(Vector2 direction)
+    {
+        otherDot = board.allDots[column + (int)direction.x, row + (int)direction.y];
+        previousColumn = column;
+        previousRow = row;
+        if (otherDot != null)
+        {
+            otherDot.GetComponent<Dot>().column += -1 * (int)direction.x;
+            otherDot.GetComponent<Dot>().row += -1 * (int)direction.y;
+            column += (int)direction.x;
+            row += (int)direction.y;
+            StartCoroutine(CheckMoveCo());
+        }
+        else
+        {
+            board.currentState = GameState.move;
+        }
+    }
+
     void MovePieces()
     {
         if (swipeAngle >-45 && swipeAngle<=45 && column < board.widht -1)
         {
             //Sağa kaydırma
-            otherDot = board.allDots[column + 1, row];
-            previousColumn = column;
-            previousRow = row;
-            otherDot.GetComponent<Dot>().column -= 1;
-            column += 1;
+            Move(Vector2.right);
         }
         else if(swipeAngle > 45 && swipeAngle <= 135 && row < board.height -1)
         {
             //Yukarı kaydırma
-            otherDot = board.allDots[column, row + 1];
-            previousColumn = column;
-            previousRow = row;
-            otherDot.GetComponent<Dot>().row -= 1;
-            row += 1;
+            Move(Vector2.up);
         }
         else if ((swipeAngle > 135 || swipeAngle <= -135) && column > 0)
         {
             //Sola kaydırma
-            otherDot = board.allDots[column -1, row];
-            previousColumn = column;
-            previousRow = row;
-            otherDot.GetComponent<Dot>().column += 1;
-            column -= 1;
+            Move(Vector2.left);
         }
         else if (swipeAngle < -45 && swipeAngle >= -135 && row > 0)
         {
             //Aşağı kaydırma
-            otherDot = board.allDots[column, row-1];
-            previousColumn = column;
-            previousRow = row;
-            otherDot.GetComponent<Dot>().row += 1;
-            row -= 1;
+            Move(Vector2.down);
         }
-
-        StartCoroutine(CheckMoveCo());
+        else
+        {
+            board.currentState = GameState.move;
+        }
     }
 
     void ApplyMoving()
@@ -199,15 +223,13 @@ public class Dot : MonoBehaviour
         }
     }
 
-  
-
-    public IEnumerator CheckMoveCo()
+    private IEnumerator CheckMoveCo()
     {
         if (isColorBomb)
         {
             //this piece is a color bomb, and the other piece is the color to destroy
             findMatches.MatchPiecesOfColor(otherDot.tag);
-            
+            isMatched = true;
         }
         else if (otherDot.GetComponent<Dot>().isColorBomb)
         {
@@ -239,7 +261,9 @@ public class Dot : MonoBehaviour
         }
         
     }
+    #endregion
 
+    #region Making bomb functions
     public void MakeRowBomb()
     {
         isRowBomb = true;
@@ -253,5 +277,20 @@ public class Dot : MonoBehaviour
         GameObject arrow = Instantiate(columnArrow, transform.position, Quaternion.identity);
         arrow.transform.parent = this.transform;
     }
+
+    public void MakeColorBomb()
+    {
+        isColorBomb = true;
+        GameObject color = Instantiate(colorBomb, transform.position, Quaternion.identity);
+        color.transform.parent = this.transform;
+    }
+
+    public void MakeAdjacentBomb()
+    {
+        isAdjentBomb = true;
+        GameObject marker = Instantiate(adjacentMarker, transform.position, Quaternion.identity);
+        marker.transform.parent = this.transform;
+    }
+    #endregion
 
 }

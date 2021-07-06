@@ -2,145 +2,278 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+#region Enums
 public enum GameState
 {
     wait,
     move
 }
 
+public enum TileKind
+{
+    Breakable,
+    Blank,
+    Normal
+}
+#endregion
+
+[System.Serializable]
+public class TileType
+{
+    public int x;
+    public int y;
+    public TileKind tileKind;
+}
+
 public class Board : MonoBehaviour
 {
-    [HideInInspector]
+    #region Variables
+
     public GameState currentState = GameState.move;
 
     private FindMatches findMatches;
 
-    public int widht,height;
+    [Header("General Variables")]
+    public int widht;
+    public int height;
     public int offset;
 
+    [Header("Game Objects")]
     public GameObject[] dots;
     public GameObject[,] allDots;
     public GameObject destroyEffect;
-
+    public GameObject breakableTilePrefab;
     public Dot currentDot;
 
+    private BackgroundTile[,] breakableTiles;
+    [Header("Arrays")]
+    public TileType[] boardLayout;
+
+    private bool[,] blankSpaces;
+
+    #endregion
+
+    #region Unity Callback Functions
     private void Start()
     {
         findMatches = FindObjectOfType<FindMatches>();
+        blankSpaces = new bool[widht, height];
+        breakableTiles = new BackgroundTile[widht, height];
         allDots = new GameObject[widht, height];
         SetUp();
     }
 
+    #endregion
 
-    void SetUp()
+    #region On Start Functions
+
+    public void GenerateBlankSpaces()
     {
+        for (int i = 0; i <boardLayout.Length; i++)
+        {
+            if (boardLayout[i].tileKind == TileKind.Blank)
+            {
+                blankSpaces[boardLayout[i].x, boardLayout[i].y] = true;
+            }
+        }
+    }
+
+    public void GenerateBreakableTiles()
+    {
+        //look at all tiles in layout
+        for (int i = 0; i < boardLayout.Length; i++)
+        {
+            //if a tile is a "jelly"tile
+            if (boardLayout[i].tileKind == TileKind.Breakable)
+            {
+                //create a jelly tile at the that pos
+                Vector2 tempPos = new Vector2(boardLayout[i].x, boardLayout[i].y);
+                GameObject tile = Instantiate(breakableTilePrefab, tempPos, Quaternion.identity);
+                breakableTiles[boardLayout[i].x, boardLayout[i].y] = tile.GetComponent<BackgroundTile>();
+                tile = null;
+            }
+        }
+    }
+
+    private void SetUp()
+    {
+
+        GenerateBlankSpaces();
+        GenerateBreakableTiles();
+
         //create the matrix
         for (int i = 0; i < widht; i++)
         {
             for (int j = 0; j <height; j++)
             {
-                Vector2 tempPos = new Vector2(i, j + offset);//set temp pos
-                int dotToUse = Random.Range(0, dots.Length);//create random index
-                int maxIterations = 0;
-                while (MatchesAt(i,j,dots[dotToUse]) && maxIterations < 100)//if there is a match at the beginning change the index
+                if (!blankSpaces[i, j])
                 {
-                    dotToUse = Random.Range(0, dots.Length);
-                    maxIterations++;
+                    Vector2 tempPos = new Vector2(i, j + offset);//set temp pos
+                    int dotToUse = Random.Range(0, dots.Length);//create random index
+                    int maxIterations = 0;
+                    while (MatchesAt(i,j,dots[dotToUse]) && maxIterations < 100)//if there is a match at the beginning change the index
+                    {
+                        dotToUse = Random.Range(0, dots.Length);
+                        maxIterations++;
+                    }
+
+                    maxIterations = 0;
+
+                    GameObject dot = Instantiate(dots[dotToUse], tempPos, Quaternion.identity);
+                    dot.GetComponent<Dot>().row= j;
+                    dot.GetComponent<Dot>().column = i;
+                    dot.transform.parent = this.transform;
+                    dot.name = "( " + i + ", " + j + " )";
+                    allDots[i, j] = dot;
                 }
-
-                maxIterations = 0;
-
-                GameObject dot = Instantiate(dots[dotToUse], tempPos, Quaternion.identity);
-                dot.GetComponent<Dot>().row= j;
-                dot.GetComponent<Dot>().column = i;
-                dot.transform.parent = this.transform;
-                dot.name = "( " + i + ", " + j + " )";
-                allDots[i, j] = dot;
             }
         }
     }
 
-    bool MatchesAt(int column, int row, GameObject piece)
+    #endregion
+
+    #region Check Funcions
+
+    private bool MatchesAt(int column, int row, GameObject piece)
     {
         if(column > 1 && row > 1)
         {
-            if(allDots[column -1 , row].tag == piece.tag && allDots[column - 2, row].tag == piece.tag)
+            if(allDots[column-1,row]!=null && allDots[column - 2, row] != null)
             {
-                return true;
+                if(allDots[column -1 , row].tag == piece.tag && allDots[column - 2, row].tag == piece.tag)
+                {
+                    return true;
+                }
             }
-            if (allDots[column , row - 1].tag == piece.tag && allDots[column, row - 2].tag == piece.tag)
+            if (allDots[column , row - 1] != null && allDots[column , row - 2] != null)
             {
-                return true;
+                if (allDots[column , row - 1].tag == piece.tag && allDots[column, row - 2].tag == piece.tag)
+                {
+                    return true;
+                }
             }
         }
         else if (column <= 1 || row >= 1)
         {
             if (row > 1)
             {
-                if(allDots[column,row-1].tag==piece.tag && allDots[column, row - 2].tag == piece.tag)
+                if(allDots[column,row-1]!=null && allDots[column, row - 2] != null)
                 {
-                    return true;
+                    if(allDots[column,row-1].tag==piece.tag && allDots[column, row - 2].tag == piece.tag)
+                    {
+                        return true;
+                    }
                 }
             }
             if (column > 1)
             {
-                if (allDots[column - 1, row].tag == piece.tag && allDots[column - 2, row].tag == piece.tag)
+                if (allDots[column -1, row] != null && allDots[column - 2, row] != null)
                 {
-                    return true;
+                    if (allDots[column - 1, row].tag == piece.tag && allDots[column - 2, row].tag == piece.tag)
+                    {
+                        return true;
+                    } 
                 }
             }
         }
         return false;
     }
 
-    void DestroyMatchesAt(int column, int row)
+    private bool ColumnOrRow()
     {
-        if (allDots[column, row].GetComponent<Dot>().isMatched)
+        int numberHorizontal = 0;
+        int numberVertical = 0;
+        
+        Dot firstPiece = findMatches.currentMatches[0].GetComponent<Dot>();
+        if (firstPiece != null)
         {
-            //How many elements are in the matched pieces list from findmatches ?
-            Debug.Log(findMatches.currentMatches.Count);
-            if(findMatches.currentMatches.Count == 4 || findMatches.currentMatches.Count == 7)
+            foreach (GameObject currentPiece in findMatches.currentMatches)
             {
-                findMatches.CheckBombs();
+                Dot dot = currentPiece.GetComponent<Dot>();
+                if (dot.row == firstPiece.row)
+                {
+                    numberHorizontal++;
+                }
+                if(dot.column == firstPiece.column)
+                {
+                    numberVertical++;
+                }
+                dot = null;
             }
-
-            findMatches.currentMatches.Remove(allDots[column, row]);
-            GameObject particle = Instantiate(destroyEffect, allDots[column, row].transform.position, Quaternion.identity);
-            Destroy(particle, .5f);
-            Destroy(allDots[column, row]);
-            allDots[column, row] = null;
         }
+        return (numberVertical == 5 || numberHorizontal == 5);
     }
 
-    public void DestroyMatches()
+    private void CheckToMakeBombs()
     {
-        for (int i = 0; i < widht; i++)
+        int matchesCount = findMatches.currentMatches.Count;
+        if(matchesCount==4 || matchesCount == 7)
         {
-            for (int j = 0; j < height; j++)
+            findMatches.CheckBombs();
+        }
+        if (matchesCount == 5 || matchesCount == 8)
+        {
+            if (ColumnOrRow())
             {
-                if (allDots[i, j] != null)
+                //Make a color Bomb
+                //is the current dot matched ? 
+                if (currentDot != null)
                 {
-                    DestroyMatchesAt(i, j);
+                    if (currentDot.isMatched)
+                    {
+                        if (!currentDot.isColorBomb)
+                        {
+                            currentDot.isMatched = false;
+                            currentDot.MakeColorBomb();
+                        }
+                    }
+                    else
+                    {
+                        if (currentDot.otherDot != null)
+                        {
+                            Dot otherDot = currentDot.otherDot.GetComponent<Dot>();
+                            if (otherDot.isMatched)
+                            {
+                                if (!otherDot.isColorBomb)
+                                {
+                                    otherDot.isMatched = false;
+                                    otherDot.MakeColorBomb();
+                                }
+                            }
+                            otherDot = null;
+                        }
+                    }
                 }
             }
-        }
-        StartCoroutine(DecreaseRowCo());
-    }
-    
-    private void RefillBoard()
-    {
-        for (int i = 0; i < widht; i++)
-        {
-            for (int j = 0; j < height; j++)
+            else
             {
-                if (allDots[i, j] == null)
+                //Make a adjacent bomb
+                if (currentDot != null)
                 {
-                    Vector2 tempPos = new Vector2(i, j+offset);
-                    int dotToIse = Random.Range(0, dots.Length);
-                    GameObject piece = Instantiate(dots[dotToIse], tempPos, Quaternion.identity);
-                    allDots[i, j] = piece;
-                    piece.GetComponent<Dot>().row = j;
-                    piece.GetComponent<Dot>().column = i;
+                    if (currentDot.isMatched)
+                    {
+                        if (!currentDot.isAdjentBomb)
+                        {
+                            currentDot.isMatched = false;
+                            currentDot.MakeAdjacentBomb();
+                        }
+                    }
+                    else
+                    {
+                        if (currentDot.otherDot != null)
+                        {
+                            Dot otherDot = currentDot.otherDot.GetComponent<Dot>();
+                            if (otherDot.isMatched)
+                            {
+                                if (!otherDot.isAdjentBomb)
+                                {
+                                    otherDot.isMatched = false;
+                                    otherDot.MakeAdjacentBomb();
+                                }
+                            }
+                            otherDot = null;
+                        }
+                    }
                 }
             }
         }
@@ -162,6 +295,203 @@ public class Board : MonoBehaviour
             }
         }
         return false;
+    }
+
+    #endregion
+
+    #region Destroy Functions
+    private void DestroyMatchesAt(int column, int row)
+    {
+        Dot dot = allDots[column, row].GetComponent<Dot>();
+        if (dot.isMatched)
+        {
+            //How many elements are in the matched pieces list from findmatches ?
+            //Debug.Log(findMatches.currentMatches.Count);
+            if(findMatches.currentMatches.Count >= 4)
+            {
+                CheckToMakeBombs();
+            }
+            //Does a tile need to break?
+            if (breakableTiles[column, row] != null)
+            {
+                //if it does, give one damage 
+                breakableTiles[column, row].TakeDamage(1);
+
+                if (breakableTiles[column, row].hitPoints <= 0)
+                {
+                    breakableTiles[column, row] = null;
+                }
+            }
+
+            Debug.Log(findMatches.currentMatches.Count);
+            GameObject particle = Instantiate(destroyEffect, allDots[column, row].transform.position, Quaternion.identity);
+            Destroy(particle, .5f);
+            Destroy(allDots[column, row]);
+            allDots[column, row] = null;
+            particle = null;
+        }
+    }
+
+    public void DestroyMatches()
+    {
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (allDots[i, j] != null)
+                {
+                    DestroyMatchesAt(i, j);
+                }
+            }
+        }
+        findMatches.currentMatches.Clear();
+        StartCoroutine(DecreaseRowCo2());
+    }
+    
+    private void RefillBoard()
+    {
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (allDots[i, j] == null && !blankSpaces[i,j])
+                {
+                    Vector2 tempPos = new Vector2(i, j+offset);
+                    int dotToIse = Random.Range(0, dots.Length);
+                    GameObject piece = Instantiate(dots[dotToIse], tempPos, Quaternion.identity);
+                    allDots[i, j] = piece;
+                    piece.GetComponent<Dot>().row = j;
+                    piece.GetComponent<Dot>().column = i;
+                    piece = null;
+                }
+            }
+        }
+    }
+
+    #endregion
+
+    #region Detecting Deadlock
+    private void SwitchPieces(int column, int row, Vector2 direction)
+    {
+        Debug.Log(direction);
+        //Take the first piece and sae it in a holder
+        GameObject holder = allDots[column + (int)direction.x, row + (int)direction.y] as GameObject;
+        //switching the first dot to be the second pos
+        allDots[column + (int)direction.x, row + (int)direction.y] = allDots[column, row];
+        //Set the first dot to be the second dot
+        allDots[column, row] = holder;
+    }
+
+    private bool CheckForMathces()
+    {
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (allDots[i,j]!=null)
+                {
+                    //Make sure that one and two to the right are in the board
+                    if (i < widht - 2)
+                    {
+                        //Check if the dots to the right and two to the right exist
+                        if (allDots[i + 1, j] != null && allDots[i + 2, j] != null) 
+                        {
+                            if (allDots[i + 1, j].tag == allDots[i, j].tag && allDots[i + 2, j].tag == allDots[i, j].tag)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    if (j < height - 2)
+                    {
+                        //Check if the dots above exist
+                        if (allDots[i, j + 1] != null && allDots[i, j + 2] != null)
+                        {
+                            if (allDots[i, j + 1].tag == allDots[i, j].tag && allDots[i, j + 2].tag == allDots[i, j].tag)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private bool SwitchAndCheck(int column,int row,Vector2 direction)
+    {
+        SwitchPieces(column, row, direction);
+        if (CheckForMathces())
+        {
+            SwitchPieces(column, row, direction);
+            return true;
+        }
+        SwitchPieces(column, row, direction);
+        return false;
+    }
+
+    private bool IsDeadlocked()
+    {
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (allDots[i, j] != null)
+                {
+                    if (i < widht - 2)
+                    {
+                        if(SwitchAndCheck(i, j, Vector2.right))
+                        {
+                            return false;
+                        }
+                    }
+                    if (i < height - 2)
+                    {
+                        if (SwitchAndCheck(i, j, Vector2.up))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+    #endregion
+
+    #region Coroutine Functions
+
+    private IEnumerator DecreaseRowCo2()
+    {
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                //if the current spot isn't blank and is empty
+                if(!blankSpaces[i,j] && allDots[i, j] == null)
+                {
+                    //loop from the space above to the top of the column
+                    for (int k = j + 1; k < height; k++)
+                    {
+                        //if a dot is found
+                        if (allDots[i, k] != null)
+                        {
+                            //move that dot to this empty space
+                            allDots[i, k].GetComponent<Dot>().row = j;
+                            //set that spot to be null
+                            allDots[i, k] = null;
+                            //break out of the loop
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        yield return new WaitForSeconds(.4f);
+        StartCoroutine(FillBoardCo());
     }
 
     private IEnumerator DecreaseRowCo()
@@ -202,7 +532,13 @@ public class Board : MonoBehaviour
         currentDot = null;
         yield return new WaitForSeconds(.5f);
 
+        if (IsDeadlocked())
+        {
+            Debug.Log("Deadlocked!!!");
+        }
+
         currentState = GameState.move;
     }
+    #endregion
 
 }
