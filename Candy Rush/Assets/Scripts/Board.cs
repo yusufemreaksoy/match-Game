@@ -323,7 +323,7 @@ public class Board : MonoBehaviour
                 }
             }
 
-            Debug.Log(findMatches.currentMatches.Count);
+            //Debug.Log(findMatches.currentMatches.Count);
             GameObject particle = Instantiate(destroyEffect, allDots[column, row].transform.position, Quaternion.identity);
             Destroy(particle, .5f);
             Destroy(allDots[column, row]);
@@ -373,7 +373,7 @@ public class Board : MonoBehaviour
     #region Detecting Deadlock
     private void SwitchPieces(int column, int row, Vector2 direction)
     {
-        Debug.Log(direction);
+        //Debug.Log(column+" , "+row);
         //Take the first piece and sae it in a holder
         GameObject holder = allDots[column + (int)direction.x, row + (int)direction.y] as GameObject;
         //switching the first dot to be the second pos
@@ -398,6 +398,7 @@ public class Board : MonoBehaviour
                         {
                             if (allDots[i + 1, j].tag == allDots[i, j].tag && allDots[i + 2, j].tag == allDots[i, j].tag)
                             {
+                                Debug.Log("Yan");
                                 return true;
                             }
                         }
@@ -410,6 +411,7 @@ public class Board : MonoBehaviour
                         {
                             if (allDots[i, j + 1].tag == allDots[i, j].tag && allDots[i, j + 2].tag == allDots[i, j].tag)
                             {
+                                Debug.Log("düz");
                                 return true;
                             }
                         }
@@ -420,8 +422,9 @@ public class Board : MonoBehaviour
         return false;
     }
 
-    private bool SwitchAndCheck(int column,int row,Vector2 direction)
+    public bool SwitchAndCheck(int column,int row,Vector2 direction)
     {
+        Debug.Log(column + " , " + row);
         SwitchPieces(column, row, direction);
         if (CheckForMathces())
         {
@@ -429,7 +432,7 @@ public class Board : MonoBehaviour
             return true;
         }
         SwitchPieces(column, row, direction);
-        return false;
+        return false;    
     }
 
     private bool IsDeadlocked()
@@ -440,14 +443,14 @@ public class Board : MonoBehaviour
             {
                 if (allDots[i, j] != null)
                 {
-                    if (i < widht - 2)
+                    if (i < widht - 1)
                     {
                         if(SwitchAndCheck(i, j, Vector2.right))
                         {
                             return false;
                         }
                     }
-                    if (i < height - 2)
+                    if (j < height - 1)
                     {
                         if (SwitchAndCheck(i, j, Vector2.up))
                         {
@@ -459,6 +462,58 @@ public class Board : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void ShuffleBoard()
+    {
+        //Create a list of game objects
+        List<GameObject> newBoard = new List<GameObject>();
+        //add every piece to this list
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (allDots[i, j]!=null)
+                {
+                    newBoard.Add(allDots[i, j]);
+                }
+            }
+        }
+        //for every spot on the board...
+        for (int i = 0; i < widht; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                if (!blankSpaces[i, j])
+                {
+                    //pick a random number
+                    int pieceToUse = Random.Range(0, newBoard.Count);
+                    int maxIterations = 0;
+                    while (MatchesAt(i, j, newBoard[pieceToUse]) && maxIterations < 100)//if there is a match at the beginning change the index
+                    {
+                        pieceToUse = Random.Range(0, newBoard.Count);
+                        maxIterations++;
+                    }
+
+                    maxIterations = 0;
+
+                    //Make to container for the piece
+                    Dot piece = newBoard[pieceToUse].GetComponent<Dot>();
+                    //Assign the column and row to the piece
+                    piece.column = i;
+                    piece.row = j;
+                    //Fill in the dots array with this new piece
+                    allDots[i, j] = newBoard[pieceToUse];
+                    //Remove it from the list
+                    newBoard.Remove(newBoard[pieceToUse]);
+                }
+            }
+        }
+        //Check if its still deadlocked
+        if (IsDeadlocked())
+        {
+            ShuffleBoard();
+        }
     }
     #endregion
 
@@ -522,7 +577,7 @@ public class Board : MonoBehaviour
     {
         RefillBoard();
         yield return new WaitForSeconds(.5f);
-
+        //Debug.Log(widht + " , " + height);
         while (MatchesOnBoard())
         {
             yield return new WaitForSeconds(.5f);
@@ -534,7 +589,9 @@ public class Board : MonoBehaviour
 
         if (IsDeadlocked())
         {
+            ShuffleBoard();
             Debug.Log("Deadlocked!!!");
+            //Debug.Log(currentDot.column + " , " + currentDot.row);
         }
 
         currentState = GameState.move;
