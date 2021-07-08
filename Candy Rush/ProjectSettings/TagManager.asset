@@ -5,13 +5,12 @@ TagManager:
   serializedVersion: 2
   tags:
   - Pick
-  - Blue Dot
-  - Dark Red Dot
-  - Orange Dot
-  - Purple Dot
-  - Red Dot
-  - Cyan Dot
-  - Yellow Dot
+  - Blue
+  - Pink
+  - Green
+  - Orange
+  - Grey
+  - Yellow
   layers:
   - Default
   - TransparentFX
@@ -48,13 +47,4 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
-    locked: 0
-  - name: Background
-    uniqueID: 2557251635
-    locked: 0
-  - name: Candies
-    uniqueID: 2243678529
-    locked: 0
-  - name: Pick
-    uniqueID: 3190508745
     locked: 0
