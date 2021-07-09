@@ -11,6 +11,7 @@ TagManager:
   - Orange
   - Grey
   - Yellow
+  - Color
   layers:
   - Default
   - TransparentFX
