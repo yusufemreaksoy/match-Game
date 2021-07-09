@@ -43,6 +43,7 @@ public class Board : MonoBehaviour
     public GameObject[,] allDots;
     public GameObject destroyEffect;
     public GameObject breakableTilePrefab;
+    public GameObject backgroundTilePrefab;
     public Dot currentDot;
 
     private BackgroundTile[,] breakableTiles;
@@ -50,6 +51,10 @@ public class Board : MonoBehaviour
     public TileType[] boardLayout;
 
     private bool[,] blankSpaces;
+    [Header("Transforms")]
+    public Transform newPieces;
+    public Transform tileBack;
+    public Transform particles;
 
     #endregion
 
@@ -109,6 +114,8 @@ public class Board : MonoBehaviour
                 if (!blankSpaces[i, j])
                 {
                     Vector2 tempPos = new Vector2(i, j + offset);//set temp pos
+                    Vector2 tilePos = new Vector2(i, j);
+                    GameObject backgroundTile = Instantiate(backgroundTilePrefab, tilePos, Quaternion.identity,tileBack);
                     int dotToUse = Random.Range(0, dots.Length);//create random index
                     int maxIterations = 0;
                     while (MatchesAt(i,j,dots[dotToUse]) && maxIterations < 100)//if there is a match at the beginning change the index
@@ -324,7 +331,7 @@ public class Board : MonoBehaviour
             }
 
             //Debug.Log(findMatches.currentMatches.Count);
-            GameObject particle = Instantiate(destroyEffect, allDots[column, row].transform.position, Quaternion.identity);
+            GameObject particle = Instantiate(destroyEffect, allDots[column, row].transform.position, Quaternion.identity, particles);
             Destroy(particle, .5f);
             Destroy(allDots[column, row]);
             allDots[column, row] = null;
@@ -358,7 +365,7 @@ public class Board : MonoBehaviour
                 {
                     Vector2 tempPos = new Vector2(i, j+offset);
                     int dotToIse = Random.Range(0, dots.Length);
-                    GameObject piece = Instantiate(dots[dotToIse], tempPos, Quaternion.identity);
+                    GameObject piece = Instantiate(dots[dotToIse], tempPos, Quaternion.identity, newPieces);
                     allDots[i, j] = piece;
                     piece.GetComponent<Dot>().row = j;
                     piece.GetComponent<Dot>().column = i;
